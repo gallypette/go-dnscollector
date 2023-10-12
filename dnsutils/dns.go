@@ -559,6 +559,8 @@ func ParseRdata(rdatatype string, rdata []byte, payload []byte, rdata_offset int
 		ret, err = ParseSOA(rdata_offset, payload)
 	case "HTTPS", "SVCB":
 		ret, err = ParseSVCB(rdata)
+	case "RRSIG":
+		ret, err = ParseRRSIG(rdata)
 	default:
 		ret = "-"
 		err = nil
@@ -826,6 +828,46 @@ func ParseSVCB(rdata []byte) (string, error) {
 		offset += int(paramLen)
 	}
 	return fmt.Sprintf("%s %s", ret, strings.Join(svcParam, " ")), nil
+}
+
+/*
+RRSIG
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|        Type Covered           |  Algorithm    |     Labels    |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                         Original TTL                          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                      Signature Expiration                     |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                      Signature Inception                      |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|            Key Tag            |                               /
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         Signer's Name         /
+/                                                               /
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+/                                                               /
+/                            Signature                          /
+/                                                               /
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+func ParseRRSIG(rdata []byte) (string, error) {
+	typecovered := binary.BigEndian.Uint16(rdata[0:2])
+	algo := int(rdata[2])
+	labels, _, err := ParseLabels(3, rdata)
+	if err != nil {
+		return "", err
+	}
+	if labels == "" {
+		labels = "."
+	}
+	originalTTL := binary.BigEndian.Uint32(rdata[4:8])
+	signatureExp := binary.BigEndian.Uint32(rdata[8:12])
+	signatureInception := binary.BigEndian.Uint32(rdata[12:16])
+	keyTag := binary.BigEndian.Uint16(rdata[16:18])
+	signerName := string(rdata[18:24])
+	signature := string(rdata[24:32])
+
+	return fmt.Sprintf("%d %d %s %d %d %d %d %s %s", typecovered, algo, labels, originalTTL, signatureExp, signatureInception, keyTag, signerName, signature), nil
 }
 
 func SVCParamKeyToString(svcParamKey uint16) string {
