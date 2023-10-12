@@ -853,13 +853,7 @@ RRSIG
 func ParseRRSIG(rdata []byte) (string, error) {
 	typecovered := binary.BigEndian.Uint16(rdata[0:2])
 	algo := int(rdata[2])
-	labels, _, err := ParseLabels(3, rdata)
-	if err != nil {
-		return "", err
-	}
-	if labels == "" {
-		labels = "."
-	}
+	labels := int(rdata[3])
 	originalTTL := binary.BigEndian.Uint32(rdata[4:8])
 	signatureExp := binary.BigEndian.Uint32(rdata[8:12])
 	signatureInception := binary.BigEndian.Uint32(rdata[12:16])
@@ -867,7 +861,7 @@ func ParseRRSIG(rdata []byte) (string, error) {
 	signerName := string(rdata[18:24])
 	signature := string(rdata[24:32])
 
-	return fmt.Sprintf("%d %d %s %d %d %d %d %s %s", typecovered, algo, labels, originalTTL, signatureExp, signatureInception, keyTag, signerName, signature), nil
+	return fmt.Sprintf("%d %d %d %d %d %d %d %s %s", typecovered, algo, labels, originalTTL, signatureExp, signatureInception, keyTag, signerName, signature), nil
 }
 
 func SVCParamKeyToString(svcParamKey uint16) string {
